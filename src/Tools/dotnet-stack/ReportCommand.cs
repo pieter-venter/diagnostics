@@ -1,4 +1,5 @@
 // Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -7,7 +8,6 @@ using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.IO;
 using System.CommandLine.Binding;
-using System.CommandLine.Rendering;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Threading;
@@ -24,7 +24,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
 {
     internal static class ReportCommandHandler
     {
-        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration);
+        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace);
 
         /// <summary>
         /// Reports a stack trace
@@ -35,70 +35,87 @@ namespace Microsoft.Diagnostics.Tools.Stack
         /// <param name="name">The name of process to report the stack from.</param>
         /// <param name="duration">The duration of to trace the target for. </param>
         /// <returns></returns>
-        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration)
+        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace)
         {
-            string tempNetTraceFilename = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".nettrace");
+            string tempNetTraceFilename = "";
             string tempEtlxFilename = "";
 
             try
             {
-                // Either processName or processId has to be specified.
-                if (!string.IsNullOrEmpty(name))
+                // This will either be the file name passed, or a temporary one (which must be deleted).
+                // We must not delete the file if passed.
+                string netTraceFilename;
+
+                if (nettrace != null)
                 {
-                    if (processId != 0)
+                    netTraceFilename = nettrace.FullName;
+                }
+                else
+                {
+                    tempNetTraceFilename = Path.Join(Path.GetTempPath(), Path.GetRandomFileName() + ".nettrace");
+                    netTraceFilename = tempNetTraceFilename;
+
+                    // Either processName or processId has to be specified.
+                    if (!string.IsNullOrEmpty(name))
                     {
-                        Console.WriteLine("Can only specify either --name or --process-id option.");
-                        return -1;
+                        if (processId != 0)
+                        {
+                            Console.WriteLine("Can only specify either --name or --process-id option.");
+                            return -1;
+                        }
+
+                        processId = CommandUtils.FindProcessIdWithName(name);
+                        if (processId < 0)
+                        {
+                            return -1;
+                        }
                     }
-                    processId = CommandUtils.FindProcessIdWithName(name);
+
                     if (processId < 0)
                     {
+                        console.Error.WriteLine("Process ID should not be negative.");
                         return -1;
                     }
-                }
-
-                if (processId < 0)
-                {
-                    console.Error.WriteLine("Process ID should not be negative.");
-                    return -1;
-                }
-                else if (processId == 0)
-                {
-                    console.Error.WriteLine("--process-id is required");
-                    return -1;
-                }
-
-
-                var client = new DiagnosticsClient(processId);
-                var providers = new List<EventPipeProvider>()
-                {
-                    new EventPipeProvider("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational)
-                };
-
-                // collect a *short* trace with stack samples
-                // the hidden '--duration' flag can increase the time of this trace in case 10ms
-                // is too short in a given environment, e.g., resource constrained systems
-                // N.B. - This trace INCLUDES rundown.  For sufficiently large applications, it may take non-trivial time to collect
-                //        the symbol data in rundown.
-                using (EventPipeSession session = client.StartEventPipeSession(providers))
-                using (FileStream fs = File.OpenWrite(tempNetTraceFilename))
-                {
-                    Task copyTask = session.EventStream.CopyToAsync(fs);
-                    await Task.Delay(duration);
-                    session.Stop();
-
-                    // check if rundown is taking more than 5 seconds and add comment to report
-                    Task timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
-                    Task completedTask = await Task.WhenAny(copyTask, timeoutTask);
-                    if (completedTask == timeoutTask)
+                    else if (processId == 0)
                     {
-                        console.Out.WriteLine($"# Sufficiently large applications can cause this command to take non-trivial amounts of time");
+                        console.Error.WriteLine("--process-id is required");
+                        return -1;
                     }
-                    await copyTask;
+
+
+                    var client = new DiagnosticsClient(processId);
+                    var providers = new List<EventPipeProvider>()
+                    {
+                        new EventPipeProvider("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational)
+                    };
+
+                    // collect a *short* trace with stack samples
+                    // the hidden '--duration' flag can increase the time of this trace in case 10ms
+                    // is too short in a given environment, e.g., resource constrained systems
+                    // N.B. - This trace INCLUDES rundown.  For sufficiently large applications, it may take non-trivial time to collect
+                    //        the symbol data in rundown.
+                    using (EventPipeSession session = client.StartEventPipeSession(providers))
+                    using (FileStream fs = File.OpenWrite(tempNetTraceFilename))
+                    {
+                        Task copyTask = session.EventStream.CopyToAsync(fs);
+                        await Task.Delay(duration);
+                        session.Stop();
+
+                        // check if rundown is taking more than 5 seconds and add comment to report
+                        Task timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
+                        Task completedTask = await Task.WhenAny(copyTask, timeoutTask);
+                        if (completedTask == timeoutTask)
+                        {
+                            console.Out.WriteLine(
+                                $"# Sufficiently large applications can cause this command to take non-trivial amounts of time");
+                        }
+
+                        await copyTask;
+                    }
                 }
 
                 // using the generated trace file, symbolicate and compute stacks.
-                tempEtlxFilename = TraceLog.CreateFromEventPipeDataFile(tempNetTraceFilename);
+                tempEtlxFilename = TraceLog.CreateFromEventPipeDataFile(netTraceFilename);
                 using (var symbolReader = new SymbolReader(System.IO.TextWriter.Null) { SymbolPath = SymbolPath.MicrosoftSymbolServerPath })
                 using (var eventLog = new TraceLog(tempEtlxFilename))
                 {
@@ -176,17 +193,18 @@ namespace Microsoft.Diagnostics.Tools.Stack
         public static Command ReportCommand() =>
             new Command(
                 name: "report",
-                description: "reports the managed stacks from a running .NET process") 
+                description: "reports the managed stacks from a running .NET process or nettrace file") 
             {
                 // Handler
                 HandlerDescriptor.FromDelegate((ReportDelegate)Report).GetCommandHandler(),
                 // Options
                 ProcessIdOption(),
                 NameOption(),
-                DurationOption()
+                DurationOption(),
+                NetTraceOption()
             };
 
-        private static Option DurationOption() =>
+        static Option DurationOption() =>
             new Option(
                 alias: "--duration",
                 description: @"When specified, will trace for the given timespan and then automatically stop the trace. Provided in the form of dd:hh:mm:ss.")
@@ -195,7 +213,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
                 IsHidden = true
             };
 
-        public static Option ProcessIdOption() =>
+        static Option ProcessIdOption() =>
             new Option(
                 aliases: new[] { "-p", "--process-id" },
                 description: "The process id to report the stack.")
@@ -203,12 +221,21 @@ namespace Microsoft.Diagnostics.Tools.Stack
                 Argument = new Argument<int>(name: "pid")
             };
 
-        public static Option NameOption() =>
+        static Option NameOption() =>
             new Option(
                 aliases: new[] { "-n", "--name" },
-                description: "The name of the process to report the stack.")
+                description: "The name of the process to report the stack.");
+        
+        static Option NetTraceOption() =>
+            new Option(
+                aliases: new[] { "-t", "--nettrace" },
+                description: "The name of the .nettrace file to report the stack.")
             {
-                Argument = new Argument<string>(name: "name")
+                Argument = new Argument<FileInfo>
+                {
+                    Description = "The .nettrace file to read the stacks from.",
+                    Arity = new ArgumentArity(1, 1),
+                }.ExistingOnly()
             };
     }
 }
