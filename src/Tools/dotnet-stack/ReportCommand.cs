@@ -16,6 +16,7 @@ using Microsoft.Diagnostics.NETCore.Client;
 using Microsoft.Internal.Common.Utils;
 using Microsoft.Tools.Common;
 using Microsoft.Diagnostics.Symbols;
+using Microsoft.Diagnostics.Tools.Stack.Model;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.Stacks;
@@ -126,14 +127,20 @@ namespace Microsoft.Diagnostics.Tools.Stack
 
                     var computer = new SampleProfilerThreadTimeComputer(eventLog, symbolReader);
                     computer.GenerateThreadTimeStacks(stackSource);
-
-                    var samplesForThread = new Dictionary<int, List<StackSourceSample>>();
+                    var stacksForThread = new Dictionary<int, List<List<IStackFrame>>>();
 
                     stackSource.ForEach((sample) =>
                     {
                         var stackIndex = sample.StackIndex;
-                        while (!stackSource.GetFrameName(stackSource.GetFrameIndex(stackIndex), false).StartsWith("Thread ("))
+                        var stack = new List<IStackFrame>();
+                        
+                        string frameName = stackSource.GetFrameName(stackSource.GetFrameIndex(stackIndex), false);
+                        while (!frameName.StartsWith("Thread ("))
+                        {
+                            stack.Add(new TraceEventStackFrame(frameName));
                             stackIndex = stackSource.GetCallerIndex(stackIndex);
+                            frameName = stackSource.GetFrameName(stackSource.GetFrameIndex(stackIndex), false);
+                        }
 
                         // long form for: int.Parse(threadFrame["Thread (".Length..^1)])
                         // Thread id is in the frame name as "Thread (<ID>)"
@@ -141,23 +148,38 @@ namespace Microsoft.Diagnostics.Tools.Stack
                         string threadFrame = stackSource.GetFrameName(stackSource.GetFrameIndex(stackIndex), false);
                         int threadId = int.Parse(threadFrame.Substring(template.Length, threadFrame.Length - (template.Length + 1)));
 
-                        if (samplesForThread.TryGetValue(threadId, out var samples))
+                        if (stacksForThread.TryGetValue(threadId, out var stacks))
                         {
-                            samples.Add(sample);
+                            stacks.Add(stack);
                         }
                         else
                         {
-                            samplesForThread[threadId] = new List<StackSourceSample>() { sample };
+                            stacksForThread[threadId] = new List<List<IStackFrame>>() { stack };
                         }
                     });
 
+                    ParallelStack root = new ParallelStack();
+                    
                     // For every thread recorded in our trace, print the first stack
-                    foreach (var (threadId, samples) in samplesForThread)
+                    foreach (var (threadId, samples) in stacksForThread)
                     {
 #if DEBUG
                         console.Out.WriteLine($"Found {samples.Count} stacks for thread 0x{threadId:X}");
 #endif
-                        PrintStack(console, threadId, samples[0], stackSource);
+                        // Reverse so first item in the list is the root
+                        samples[0].Reverse();
+                        root.AddStack((uint)threadId, samples[0]);
+                    }
+                    
+                    var visitor = new ColorConsoleRenderer(console, limit: 4);
+                    console.Out.WriteLine("");
+                    foreach (var stack in root.Stacks)
+                    {
+                        console.Out.Write("________________________________________________");
+                        stack.Render(visitor);
+                        console.Out.WriteLine("");
+                        console.Out.WriteLine("");
+                        console.Out.WriteLine("");
                     }
                 }
             }
@@ -173,7 +195,6 @@ namespace Microsoft.Diagnostics.Tools.Stack
                 if (File.Exists(tempEtlxFilename))
                     File.Delete(tempEtlxFilename);
             }
-
             return 0;
         }
 
