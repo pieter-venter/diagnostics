@@ -12,6 +12,7 @@ public static class MermaidClassDiagramRenderer
     public static void Render(ParallelStack stack, IConsole console)
     {
         int id = 1;
+        console.Out.WriteLine("classDiagram");
         RenderGraph(console, stack, null, ref id);    
     }
     
@@ -21,7 +22,7 @@ public static class MermaidClassDiagramRenderer
             {
                 // Last item on frame
                 block.Push(currentFrame.Frame.Text);
-                RenderBlock(console, block, id);
+                RenderBlock(console, currentFrame.ThreadIds.Count, block, id);
                 
             } else if (currentFrame.Stacks.Count == 1)
             {
@@ -38,7 +39,7 @@ public static class MermaidClassDiagramRenderer
                 {
                     // We're at a fork (more than item in Stack property). Push the current frame and render.
                     block.Push(currentFrame.Frame.Text);
-                    RenderBlock(console, block, id);
+                    RenderBlock(console, currentFrame.ThreadIds.Count, block, id);
                 }
 
                 // Remember my ID (the parent) so I can link my children once they return from recursive call.
@@ -57,14 +58,22 @@ public static class MermaidClassDiagramRenderer
             }
         }
 
-        static void RenderBlock(IConsole console, Stack<string> block, int id)
+        static void RenderBlock(IConsole console, int threads, Stack<string> block, int id)
         {
             if (block is not null)
             {
-                console.Out.Write($"class {id} {{");
+                console.Out.WriteLine($"class {id} {{");
+                console.Out.WriteLine($"Number of Threads: {threads}");
                 while (block.Count > 0)
                 {
                     string top = block.Pop();
+                    
+                    // To ensure mermaid puts our method in the method block, it must have brackets
+                    if (!top.EndsWith(")"))
+                    {
+                        top += "()";
+                    }
+                    console.Out.Write("    ");
                     console.Out.WriteLine(top);
                 }
                 console.Out.WriteLine("}");
