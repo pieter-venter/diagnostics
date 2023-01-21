@@ -13,7 +13,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
     {
         private readonly IConsole _console;
 
-        public ColorConsoleRenderer(IConsole console, int limit = -1) : base(limit)
+        public ColorConsoleRenderer(IConsole console, int limit = -1, FrameRenderFlags frameRenderFlags = FrameRenderFlags.RenderAll) : base(limit, frameRenderFlags)
         {
             _console = console;
         }

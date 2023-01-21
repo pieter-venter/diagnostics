@@ -81,5 +81,11 @@ namespace Microsoft.Diagnostics.Tools.Stack.Model
         /// </summary>
         /// <param name="threadID"></param>
         string FormatTheadId(uint threadID);
+
+        /// <summary>
+        /// Renders a frame.
+        /// </summary>
+        /// <param name="frame">The frame to render.</param>
+        void WriteFrame(IStackFrame frame);
     }
 }

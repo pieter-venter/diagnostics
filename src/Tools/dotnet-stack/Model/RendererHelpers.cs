@@ -25,8 +25,7 @@ namespace Microsoft.Diagnostics.Tools.Stack.Model
                 visitor.Write($"{Environment.NewLine}{alignment}");
                 visitor.WriteFrameSeparator($" ~~~~ {FormatThreadIdList(visitor, stack.ThreadIds)}");
                 visitor.WriteCount($"{Environment.NewLine}{alignment}{stack.ThreadIds.Count,Padding} ");
-
-                RenderFrame(lastFrame, visitor);
+                visitor.WriteFrame(lastFrame);
                 return;
             }
 
@@ -38,7 +37,7 @@ namespace Microsoft.Diagnostics.Tools.Stack.Model
 
             var currentFrame = stack.Frame;
             visitor.WriteCount($"{Environment.NewLine}{alignment}{stack.ThreadIds.Count,Padding} ");
-            RenderFrame(currentFrame, visitor);
+            visitor.WriteFrame(currentFrame);
         }
 
         private static string FormatThreadIdList(IRenderer visitor, List<uint> threadIds)
@@ -56,44 +55,5 @@ namespace Microsoft.Diagnostics.Tools.Stack.Model
                 return result;
             }
         }
-
-        private static void RenderFrame(IStackFrame frame, IRenderer visitor)
-        {
-            if (!string.IsNullOrEmpty(frame.TypeName))
-            {
-                var namespaces = frame.TypeName.Split('.');
-                for (int i = 0; i < namespaces.Length - 1; i++)
-                {
-                    visitor.WriteNamespace(namespaces[i]);
-                    visitor.WriteSeparator(".");
-                }
-                visitor.WriteMethodType(namespaces[namespaces.Length - 1]);
-                visitor.WriteSeparator(".");
-            }
-
-            visitor.WriteMethod(frame.MethodName);
-            visitor.WriteSeparator("(");
-
-            var parameters = frame.Signature;
-            for (int current = 0; current < parameters.Length; current++)
-            {
-                var parameter = parameters[current];
-                // handle byref case
-                var pos = parameter.LastIndexOf(" ByRef");
-                if (pos != -1)
-                {
-                    visitor.WriteType(parameter.Substring(0, pos));
-                    visitor.WriteDark(" ByRef");
-                }
-                else
-                {
-                    visitor.WriteType(parameter);
-                }
-                if (current < parameters.Length - 1) visitor.WriteSeparator(", ");
-            }
-            visitor.WriteSeparator(")");
-        }
-
-
     }
 }

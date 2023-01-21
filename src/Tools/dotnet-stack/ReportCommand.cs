@@ -25,7 +25,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
 {
     internal static class ReportCommandHandler
     {
-        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat);
+        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat, FrameRenderFlags hideFrame);
 
         /// <summary>
         /// Reports a stack trace
@@ -36,7 +36,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
         /// <param name="name">The name of process to report the stack from.</param>
         /// <param name="duration">The duration of to trace the target for. </param>
         /// <returns></returns>
-        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat)
+        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat, FrameRenderFlags frameFlags)
         {
             string tempNetTraceFilename = "";
             string tempEtlxFilename = "";
@@ -178,7 +178,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
                             break;
                         case OutputFormat.ParallelStacks:
                             root = GetParallelStack(stacksForThread);
-                            var visitor = new ColorConsoleRenderer(console, limit: 4);
+                            var visitor = new ColorConsoleRenderer(console, limit: 4, frameFlags);
                             console.Out.WriteLine("");
                             foreach (var stack in root.Stacks)
                             {
@@ -251,7 +251,8 @@ namespace Microsoft.Diagnostics.Tools.Stack
                 NameOption(),
                 DurationOption(),
                 NetTraceOption(),
-                OutputFormatOption()
+                OutputFormatOption(),
+                HideFrameOption()
             };
 
         static Option DurationOption() =>
@@ -294,6 +295,14 @@ namespace Microsoft.Diagnostics.Tools.Stack
                 description: "The output format of the stack trace.")
             {
                 Argument = new Argument<OutputFormat>(getDefaultValue:() => OutputFormat.Stacks)
+            };
+
+        static Option HideFrameOption() =>
+            new Option(
+                aliases: new[] { "-h", "--frame-flags" },
+                description: "Hides part(s) of the frame.")
+            {
+                Argument = new Argument<FrameRenderFlags>()
             };
     }
 }
