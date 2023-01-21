@@ -25,7 +25,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
 {
     internal static class ReportCommandHandler
     {
-        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace);
+        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat);
 
         /// <summary>
         /// Reports a stack trace
@@ -36,7 +36,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
         /// <param name="name">The name of process to report the stack from.</param>
         /// <param name="duration">The duration of to trace the target for. </param>
         /// <returns></returns>
-        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace)
+        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat)
         {
             string tempNetTraceFilename = "";
             string tempEtlxFilename = "";
@@ -158,28 +158,41 @@ namespace Microsoft.Diagnostics.Tools.Stack
                         }
                     });
 
-                    ParallelStack root = new ParallelStack();
-                    
-                    // For every thread recorded in our trace, print the first stack
-                    foreach (var (threadId, samples) in stacksForThread)
+                    ParallelStack root;
+                    switch (outputFormat)
                     {
+                        case OutputFormat.Stacks:
+                            // For every thread recorded in our trace, print the first stack
+                            foreach (var (threadId, samples) in stacksForThread)
+                            {
 #if DEBUG
-                        console.Out.WriteLine($"Found {samples.Count} stacks for thread 0x{threadId:X}");
+                                console.Out.WriteLine($"Found {samples.Count} stacks for thread 0x{threadId:X}");
 #endif
-                        // Reverse so first item in the list is the root
-                        samples[0].Reverse();
-                        root.AddStack((uint)threadId, samples[0]);
-                    }
-                    
-                    var visitor = new ColorConsoleRenderer(console, limit: 4);
-                    console.Out.WriteLine("");
-                    foreach (var stack in root.Stacks)
-                    {
-                        console.Out.Write("________________________________________________");
-                        stack.Render(visitor);
-                        console.Out.WriteLine("");
-                        console.Out.WriteLine("");
-                        console.Out.WriteLine("");
+                                console.Out.WriteLine($"Thread (0x{threadId:X}):");
+                                foreach (IStackFrame frame in samples[0])
+                                {
+                                    console.Out.WriteLine($"  {frame.Text}".Replace("UNMANAGED_CODE_TIME", "[Native Frames]"));
+                                }
+                                console.Out.WriteLine();
+                            }
+                            break;
+                        case OutputFormat.ParallelStacks:
+                            root = GetParallelStack(stacksForThread);
+                            var visitor = new ColorConsoleRenderer(console, limit: 4);
+                            console.Out.WriteLine("");
+                            foreach (var stack in root.Stacks)
+                            {
+                                console.Out.Write("________________________________________________");
+                                stack.Render(visitor);
+                                console.Out.WriteLine("");
+                                console.Out.WriteLine("");
+                                console.Out.WriteLine("");
+                            }
+                            break;
+                        case OutputFormat.MermaidClassDiagram:
+                            root = GetParallelStack(stacksForThread);
+                            MermaidClassDiagramRenderer.Render(root, console);
+                            break;
                     }
                 }
             }
@@ -196,6 +209,21 @@ namespace Microsoft.Diagnostics.Tools.Stack
                     File.Delete(tempEtlxFilename);
             }
             return 0;
+        }
+
+        private static ParallelStack GetParallelStack(Dictionary<int, List<List<IStackFrame>>> stacksForThread)
+        {
+            ParallelStack root = new ParallelStack();
+
+            // For every thread recorded in our trace, print the first stack
+            foreach (var (threadId, samples) in stacksForThread)
+            {
+                // Reverse so first item in the list is the root
+                samples[0].Reverse();
+                root.AddStack((uint)threadId, samples[0]);
+            }
+
+            return root;
         }
 
         private static void PrintStack(IConsole console, int threadId, StackSourceSample stackSourceSample, StackSource stackSource)
@@ -222,7 +250,8 @@ namespace Microsoft.Diagnostics.Tools.Stack
                 ProcessIdOption(),
                 NameOption(),
                 DurationOption(),
-                NetTraceOption()
+                NetTraceOption(),
+                OutputFormatOption()
             };
 
         static Option DurationOption() =>
@@ -257,6 +286,14 @@ namespace Microsoft.Diagnostics.Tools.Stack
                     Description = "The .nettrace file to read the stacks from.",
                     Arity = new ArgumentArity(1, 1),
                 }.ExistingOnly()
+            };
+
+        static Option OutputFormatOption() =>
+            new Option(
+                aliases: new[] { "-o", "--output-format" },
+                description: "The output format of the stack trace.")
+            {
+                Argument = new Argument<OutputFormat>(getDefaultValue:() => OutputFormat.Stacks)
             };
     }
 }
