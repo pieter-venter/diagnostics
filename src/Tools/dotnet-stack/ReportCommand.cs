@@ -10,6 +10,7 @@ using System.CommandLine.IO;
 using System.CommandLine.Binding;
 using System.Diagnostics.Tracing;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Diagnostics.NETCore.Client;
@@ -25,7 +26,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
 {
     internal static class ReportCommandHandler
     {
-        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat, FrameRenderFlags hideFrame);
+        delegate Task<int> ReportDelegate(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat, IEnumerable<FrameRenderFlags> hideFrame);
 
         /// <summary>
         /// Reports a stack trace
@@ -36,7 +37,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
         /// <param name="name">The name of process to report the stack from.</param>
         /// <param name="duration">The duration of to trace the target for. </param>
         /// <returns></returns>
-        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat, FrameRenderFlags frameFlags)
+        private static async Task<int> Report(CancellationToken ct, IConsole console, int processId, string name, TimeSpan duration, FileInfo nettrace, OutputFormat outputFormat, IEnumerable<FrameRenderFlags> frameFlags)
         {
             string tempNetTraceFilename = "";
             string tempEtlxFilename = "";
@@ -178,7 +179,8 @@ namespace Microsoft.Diagnostics.Tools.Stack
                             break;
                         case OutputFormat.ParallelStacks:
                             root = GetParallelStack(stacksForThread);
-                            var visitor = new ColorConsoleRenderer(console, limit: 4, frameFlags);
+                            var flags = frameFlags.Aggregate((a, b) => a | b);
+                            var visitor = new ColorConsoleRenderer(console, limit: 4, flags);
                             console.Out.WriteLine("");
                             foreach (var stack in root.Stacks)
                             {
@@ -300,9 +302,11 @@ namespace Microsoft.Diagnostics.Tools.Stack
         static Option HideFrameOption() =>
             new Option(
                 aliases: new[] { "-h", "--frame-flags" },
-                description: "Hides part(s) of the frame.")
-            {
-                Argument = new Argument<FrameRenderFlags>()
+                description: "Hides part(s) of the frame."){
+                Argument = new Argument<IEnumerable<FrameRenderFlags>>()
+                {
+                    Arity = ArgumentArity.OneOrMore
+                }
             };
     }
 }

@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+
 namespace Microsoft.Diagnostics.Tools.Stack.Model
 {
     public abstract class RendererBase : IRenderer
@@ -33,8 +35,8 @@ namespace Microsoft.Diagnostics.Tools.Stack.Model
             if (!string.IsNullOrEmpty(frame.TypeName))
             {
                 var namespaces = frame.TypeName.Split('.');
-
-                if (_frameRenderFlags != FrameRenderFlags.HideNamespace)
+                
+                if (!_frameRenderFlags.HasFlag(FrameRenderFlags.HideNamespace))
                 {
                     for (int i = 0; i < namespaces.Length - 1; i++)
                     {
@@ -43,19 +45,19 @@ namespace Microsoft.Diagnostics.Tools.Stack.Model
                     }
                 }
 
-                if (_frameRenderFlags != FrameRenderFlags.HideType)
+                if (!_frameRenderFlags.HasFlag(FrameRenderFlags.HideType))
                 {
                     WriteMethodType(namespaces[namespaces.Length - 1]);
                     WriteSeparator(".");
                 }
             }
 
-            if (_frameRenderFlags != FrameRenderFlags.HideMethod)
+            if (!_frameRenderFlags.HasFlag(FrameRenderFlags.HideMethod))
             {
                 WriteMethod(frame.MethodName);
                 WriteSeparator("(");
 
-                if (_frameRenderFlags != FrameRenderFlags.HideParameters)
+                if (!_frameRenderFlags.HasFlag(FrameRenderFlags.HideParameters))
                 {
                     var parameters = frame.Signature;
                     for (int current = 0; current < parameters.Length; current++)
