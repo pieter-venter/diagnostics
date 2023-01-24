@@ -195,7 +195,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
                         case OutputFormat.MermaidClassDiagram:
                             root = GetParallelStack(stacksForThread);
                             visitor = new ColorConsoleRenderer(console, limit: 4, flags);
-                            MermaidClassDiagramRenderer.Render(root, console, visitor);
+                            MermaidClassDiagramRenderer.Render(root, visitor);
                             break;
                     }
                 }
