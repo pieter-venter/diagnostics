@@ -305,9 +305,12 @@ namespace Microsoft.Diagnostics.Tools.Stack
             new Option(
                 aliases: new[] { "-h", "--frame-flags" },
                 description: "Hides part(s) of the frame."){
-                Argument = new Argument<IEnumerable<FrameRenderFlags>>()
+                Argument = new Argument<IEnumerable<FrameRenderFlags>>(() => new List<FrameRenderFlags>()
+                    {
+                        FrameRenderFlags.RenderAll
+                    })
                 {
-                    Arity = ArgumentArity.OneOrMore
+                    Arity = ArgumentArity.OneOrMore,
                 }
             };
     }
