@@ -159,6 +159,8 @@ namespace Microsoft.Diagnostics.Tools.Stack
                         }
                     });
 
+                    var flags = frameFlags.Aggregate((a, b) => a | b);
+                    IRenderer visitor;
                     ParallelStack root;
                     switch (outputFormat)
                     {
@@ -179,8 +181,7 @@ namespace Microsoft.Diagnostics.Tools.Stack
                             break;
                         case OutputFormat.ParallelStacks:
                             root = GetParallelStack(stacksForThread);
-                            var flags = frameFlags.Aggregate((a, b) => a | b);
-                            var visitor = new ColorConsoleRenderer(console, limit: 4, flags);
+                            visitor = new ColorConsoleRenderer(console, limit: 4, flags);
                             console.Out.WriteLine("");
                             foreach (var stack in root.Stacks)
                             {
@@ -193,7 +194,8 @@ namespace Microsoft.Diagnostics.Tools.Stack
                             break;
                         case OutputFormat.MermaidClassDiagram:
                             root = GetParallelStack(stacksForThread);
-                            MermaidClassDiagramRenderer.Render(root, console);
+                            visitor = new ColorConsoleRenderer(console, limit: 4, flags);
+                            MermaidClassDiagramRenderer.Render(root, console, visitor);
                             break;
                     }
                 }
