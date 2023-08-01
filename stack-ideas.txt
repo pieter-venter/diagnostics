@@ -1,0 +1,106 @@
+Original
+                        1 Unknown()
+                        1 System.Threading.ManualResetEventSlim.Wait(int32, value class System.Threading.CancellationToken)
+                        1 System.Threading.Tasks.Task.SpinThenBlockingWait(int32, value class System.Threading.CancellationToken)
+                        1 System.Threading.Tasks.Task.InternalWaitCore(int32, value class System.Threading.CancellationToken)
+                        1 System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task)
+                        1 Geotab.Worker.HostedServiceExtension.Run(class Microsoft.Extensions.Hosting.IHostedService, value class System.Threading.CancellationToken&)
+                        1 CheckmateServer.BackgroundServices.MyGeotabService+<RunAsync>d__20.MoveNext()
+                        1 System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start(!!0&)
+                        1 CheckmateServer.BackgroundServices.MyGeotabService.RunAsync()
+
+
+Split and align methods:
+
+                        1 Unknown()
+                        1 System.Threading.ManualResetEventSlim					.Wait(int32, value class System.Threading.CancellationToken)
+                        1 System.Threading.Tasks.Task						.SpinThenBlockingWait(int32, value class System.Threading.CancellationToken)
+                        1 System.Threading.Tasks.Task						.InternalWaitCore(int32, value class System.Threading.CancellationToken)
+                        1 System.Runtime.CompilerServices.TaskAwaiter				.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task)
+                        1 Geotab.Worker.HostedServiceExtension					.Run(class Microsoft.Extensions.Hosting.IHostedService, value class System.Threading.CancellationToken&)
+                        1 CheckmateServer.BackgroundServices.MyGeotabService+<RunAsync>d__20	.MoveNext()
+                        1 System.Runtime.CompilerServices.AsyncMethodBuilderCore		.Start(!!0&)
+                        1 CheckmateServer.BackgroundServices.MyGeotabService			.RunAsync()
+                        
+Indent and align methods:                        
+                        1 Unknown()
+                        1 System.Threading.ManualResetEventSlim.Wait(int32, value class System.Threading.CancellationToken)
+                        1                                          System.Threading.Tasks.Task.SpinThenBlockingWait(int32, value class System.Threading.CancellationToken)
+                        1                                          System.Threading.Tasks.Task.InternalWaitCore(int32, value class System.Threading.CancellationToken)
+                        1                          System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task)
+                        1                                 Geotab.Worker.HostedServiceExtension.Run(class Microsoft.Extensions.Hosting.IHostedService, value class System.Threading.CancellationToken&)
+                        1                                   CheckmateServer.BackgroundServices.MyGeotabService+<RunAsync>d__20.MoveNext()
+                        1               System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start(!!0&)
+                        1                   CheckmateServer.BackgroundServices.MyGeotabService.RunAsync()
+           
+                        
+
+Split and align methods, only last one with args:
+                        1 Unknown()
+                        1 System.Threading.ManualResetEventSlim					.Wait(int32, value class System.Threading.CancellationToken)
+                        1 System.Threading.Tasks.Task						.SpinThenBlockingWait()
+                        1 System.Threading.Tasks.Task						.InternalWaitCore()
+                        1 System.Runtime.CompilerServices.TaskAwaiter				.HandleNonSuccessAndDebuggerNotification()
+                        1 Geotab.Worker.HostedServiceExtension					.Run()
+                        1 CheckmateServer.BackgroundServices.MyGeotabService+<RunAsync>d__20	.MoveNext()
+                        1 System.Runtime.CompilerServices.AsyncMethodBuilderCore		.Start)
+                        1 CheckmateServer.BackgroundServices.MyGeotabService			.RunAsync()
+                        
+                        
+Only type, split and align:                        
+                        1 Unknown()
+                        1 ManualResetEventSlim		   .Wait(int32, value class System.Threading.CancellationToken)
+                        1 Task				   .SpinThenBlockingWait(int32, value class System.Threading.CancellationToken)
+                        1 Task				   .InternalWaitCore(int32, value class System.Threading.CancellationToken)
+                        1 TaskAwaiter			   .HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task)
+                        1 HostedServiceExtension	   .Run(class Microsoft.Extensions.Hosting.IHostedService, value class System.Threading.CancellationToken&)
+                        1 MyGeotabService+<RunAsync>d__20  .MoveNext()
+                        1 AsyncMethodBuilderCore	   .Start(!!0&)
+                        1 MyGeotabService		   .RunAsync()                      
+                        
+Type only, ident and align:
+                        1                                  .Unknown()
+                        1              ManualResetEventSlim.Wait(int32, value class System.Threading.CancellationToken)
+                        1                              Task.SpinThenBlockingWait(int32, value class System.Threading.CancellationToken)
+                        1                              Task.InternalWaitCore(int32, value class System.Threading.CancellationToken)
+                        1                       TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task)
+                        1            HostedServiceExtension.Run(class Microsoft.Extensions.Hosting.IHostedService, value class System.Threading.CancellationToken&)
+                        1   MyGeotabService+<RunAsync>d__20.MoveNext()
+                        1            AsyncMethodBuilderCore.Start(!!0&)
+                        1 		    MyGeotabService.RunAsync()                        
+                        
+
+Only type, split and align:                         
+                        1 Unknown()
+                        1 ManualResetEventSlim		   .Wait(int32, value class CancellationToken)
+                        1 Task				   .SpinThenBlockingWait(int32, value class CancellationToken)
+                        1 Task				   .InternalWaitCore(int32, value class CancellationToken)
+                        1 TaskAwaiter			   .HandleNonSuccessAndDebuggerNotification(class Task)
+                        1 HostedServiceExtension	   .Run(class IHostedService, value class CancellationToken&)
+                        1 MyGeotabService+<RunAsync>d__20  .MoveNext()
+                        1 AsyncMethodBuilderCore	   .Start(!!0&)
+                        1 MyGeotabService		   .RunAsync() 
+                        
+                        
+Only type, simplified parameters                        
+                        1 Unknown()
+                        1 ManualResetEventSlim.Wait(int32, value class CancellationToken)
+                        1 Task.SpinThenBlockingWait(int32, value class CancellationToken)
+                        1 Task.InternalWaitCore(int32, value class CancellationToken)
+                        1 TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class Task)
+                        1 HostedServiceExtension.Run(class IHostedService, value class CancellationToken&)
+                        1 MyGeotabService+<RunAsync>d__20.MoveNext()
+                        1 AsyncMethodBuilderCore.Start(!!0&)
+                        1 MyGeotabService.RunAsync()   
+                        
+Removal of state machine crap
+
+                        1 Unknown()
+                        1 ManualResetEventSlim.Wait(int32, value class CancellationToken)
+                        1 Task.SpinThenBlockingWait(int32, value class CancellationToken)
+                        1 Task.InternalWaitCore(int32, value class CancellationToken)
+                        1 HostedServiceExtension.Run(class IHostedService, value class CancellationToken&)
+                        1 MyGeotabService.RunAsync()  
+
+                          
+
